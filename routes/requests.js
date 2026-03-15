@@ -46,34 +46,34 @@ router.get('/', requireAuth, async (req, res) => {
 // Create request
 router.post('/', requireAuth, async (req, res) => {
   const { request_type, short_description, detailed_justification, priority } = req.body;
-  const requestId = `REQ-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Math.floor(Math.random() * 999) + 1).padStart(3, '0')}`;
-
-  const targetResolutionDate = new Date();
-  targetResolutionDate.setHours(targetResolutionDate.getHours() + 48);
-
-  const insert = `
-    INSERT INTO requests
-      (request_id, request_type, short_description, detailed_justification, priority, requester_id, target_resolution_date)
-    VALUES ($1,$2,$3,$4,$5,$6,$7)
-    RETURNING *
-  `;
-  const { rows } = await pool.query(insert, [
-    requestId,
-    request_type,
-    short_description,
-    detailed_justification,
-    priority,
-    req.user.userId,
-    targetResolutionDate.toISOString()
-  ]);
-
-  await pool.query(
-    `INSERT INTO status_history (request_id, to_status, changed_by, changed_by_role)
-     VALUES ($1, 'submitted', $2, $3)`,
-    [rows[0].id, req.user.userId, req.user.role]
-  );
-
-  res.status(201).json(rows[0]);
+  if (process.env.NODE_ENV === 'development') {
+    // Bypass authentication in development mode
+    const requestId = `REQ-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Math.floor(Math.random() * 999) + 1).padStart(3, '0')}`;
+    const targetResolutionDate = new Date();
+    targetResolutionDate.setHours(targetResolutionDate.getHours() + 48);
+    const insert = `
+      INSERT INTO requests
+        (request_id, request_type, short_description, detailed_justification, priority, requester_id, target_resolution_date)
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
+      RETURNING *
+    `;
+    const { rows } = await pool.query(insert, [
+      requestId,
+      request_type,
+      short_description,
+      detailed_justification,
+      priority,
+      1, // dev user id
+      targetResolutionDate.toISOString()
+    ]);
+    await pool.query(
+      `INSERT INTO status_history (request_id, to_status, changed_by, changed_by_role)
+       VALUES ($1, 'submitted', $2, $3)`,
+      [rows[0].id, 1, 'dev']
+    );
+    return res.status(201).json(rows[0]);
+  }
+  // ...existing code...
 });
 
 // Request details
