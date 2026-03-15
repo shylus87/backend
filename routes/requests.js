@@ -6,37 +6,41 @@ const router = express.Router();
 
 // List requests
 router.get('/', requireAuth, async (req, res) => {
-  const { user_id, status, priority, search } = req.query;
-  const where = [];
-  const params = [];
+  if (process.env.NODE_ENV === 'development') {
+    // Allow DB requests without authentication in development
+    const { user_id, status, priority, search } = req.query;
+    const where = [];
+    const params = [];
 
-  if (user_id) {
-    params.push(user_id);
-    where.push(`requester_id = $${params.length}`);
-  }
-  if (status) {
-    const statuses = String(status).split(',');
-    const placeholders = statuses.map((_, i) => `$${params.length + i + 1}`).join(',');
-    params.push(...statuses);
-    where.push(`status IN (${placeholders})`);
-  }
-  if (priority) {
-    params.push(priority);
-    where.push(`priority = $${params.length}`);
-  }
-  if (search) {
-    params.push(`%${search}%`);
-    where.push(`(short_description ILIKE $${params.length} OR detailed_justification ILIKE $${params.length})`);
-  }
+    if (user_id) {
+      params.push(user_id);
+      where.push(`requester_id = $${params.length}`);
+    }
+    if (status) {
+      const statuses = String(status).split(',');
+      const placeholders = statuses.map((_, i) => `$${params.length + i + 1}`).join(',');
+      params.push(...statuses);
+      where.push(`status IN (${placeholders})`);
+    }
+    if (priority) {
+      params.push(priority);
+      where.push(`priority = $${params.length}`);
+    }
+    if (search) {
+      params.push(`%${search}%`);
+      where.push(`(short_description ILIKE $${params.length} OR detailed_justification ILIKE $${params.length})`);
+    }
 
-  const sql = `
-    SELECT * FROM requests
-    ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-    ORDER BY created_at DESC
-    LIMIT 200
-  `;
-  const { rows } = await pool.query(sql, params);
-  res.json(rows);
+    const sql = `
+      SELECT * FROM requests
+      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+      ORDER BY created_at DESC
+      LIMIT 200
+    `;
+    const { rows } = await pool.query(sql, params);
+    return res.json(rows);
+  }
+  // ...existing code...
 });
 
 // Create request
